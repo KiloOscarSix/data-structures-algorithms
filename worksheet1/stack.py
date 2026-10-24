@@ -112,24 +112,38 @@ def test_stack() -> None:  # noqa: PLR0915
 
     # Boundary test: initial state -> operation -> expected vs actual
     stack = Stack(capacity=3)
+    stack.push(1)
+    stack.push(2)
+    stack.push(3)
 
+    initial = {
+        "data": stack._data.copy(),
+        "top": stack._top,
+        "length": stack.length(),
+    }
     expected = {
-        "data": ["x", None, None],
-        "top": 0,
-        "length": 1,
+        "raised": "OverflowError",
+        "data": [1, 2, 3],
+        "top": 2,
+        "length": 3,
     }
 
-    stack.push("x")
+    raised = "nothing"
+    try:
+        stack.push(4)
+    except OverflowError:
+        raised = "OverflowError"
 
     actual = {
+        "raised": raised,
         "data": stack._data,
         "top": stack._top,
         "length": stack.length(),
     }
 
     print("\nBoundary test:")
-    print("Initial state: data=[], top=-1, length=0")
-    print("Operation: push('x')")
+    print(f"Initial state: {initial}")
+    print("Operation: push(4)")
     print(f"Expected: {expected}")
     print(f"Actual:   {actual}")
 
