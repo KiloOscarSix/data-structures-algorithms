@@ -63,10 +63,31 @@ WORKSHEET ANSWERS TO REMEMBER
 - Balanced from sorted list: middle element = root, recurse on halves.
   Skewed [1..7] height 7 -> 3, BFT [4, 2, 6, 1, 3, 5, 7].
 
+LEVELS, HEIGHT AND LEAF COUNTS (other student's quiz: "max leaf nodes", "sum of a level")
+  !! level counts from 0 at the root; height counts NODES (root alone = height 1).
+     "Level L" == "depth L" == the nodes at height L + 1 from the top.
+     If the question says "height h" meaning a level, use level = h - 1. CHECK THE WORDING.
+  Max nodes AT level L          = 2^L          (L=0:1, 1:2, 2:4, 3:8)
+  Max nodes in tree of height h = 2^h - 1      (h=3: 7)
+  Max LEAVES in tree of height h = 2^(h-1)     (all on the last level; h=3: 4)
+     (if height counts EDGES instead, i.e. root = 0: max leaves = 2^h, nodes 2^(h+1)-1)
+  Max leaves with n nodes = ceil(n / 2) = (n + 1) // 2
+  Min leaves (any non-empty tree) = 1 (a chain/skewed tree)
+  Full binary tree (0 or 2 children): leaves = internal nodes + 1, n = 2*leaves - 1
+  Perfect tree of height h: leaves 2^(h-1), internal 2^(h-1) - 1
+  EXAMPLE tree: level sums [50, 100, 200]; level 2 sum = 20+40+60+80 = 200;
+     leaves 4 (= max for height 3), internal 3.
+  Sum at a level: recursive (walk(node, depth), add when depth == L, stop going deeper)
+     O(n) worst; or BFT with a queue processed one level at a time
+     (len(queue) at the start of each round = number of nodes on that level).
+
 QUIZ VARIANTS (all tested in test_variants): search "VARIANTS" below.
 find_min, find_max, insert_iterative, search_iterative, kth_smallest, range_query,
 count_in_range, sum_values, depth_of, successor_of, lca, is_bst, count_internal,
-nodes_at_level, closest_value, mirror, delete_predecessor, from_preorder_inorder.
+nodes_at_level, closest_value, mirror, delete_predecessor, from_preorder_inorder,
+sum_at_level, sum_at_level_bft, sum_at_height, level_sums, count_at_level,
+print_level, max_level_sum, sum_leaves, leaf_count_bft, max_leaves_for_height,
+max_nodes_at_level, max_nodes_for_height, max_leaves_for_nodes.
 """
 
 from collections import deque  # ONLY import: Worksheet 5 hint explicitly allows deque for BFT
@@ -531,6 +552,139 @@ class BST:
 
         self.root = d(self.root, key)
 
+    # ---------- Level / leaf variants (other student's quiz) ----------
+
+    def sum_at_level(self, level: int) -> int:
+        """Sum of node values on a level (root = level 0). 0 if level is empty.
+
+        Recursive DFS carrying the depth; stop descending once depth == level.
+        O(n) time worst case, O(h) stack.
+        """
+
+        def walk(node: Node | None, depth: int) -> int:
+            if node is None:
+                return 0
+            if depth == level:
+                return node.value  # don't go deeper
+            return walk(node.left, depth + 1) + walk(node.right, depth + 1)
+
+        return walk(self.root, 0) if level >= 0 else 0
+
+    def sum_at_level_bft(self, level: int) -> int:
+        """Same answer, iterative: BFT one whole level per round. O(n), O(w)."""
+        if self.root is None or level < 0:
+            return 0
+        queue: deque[Node] = deque([self.root])
+        depth = 0
+        while queue:
+            size = len(queue)  # number of nodes on the current level
+            if depth == level:
+                return sum(node.value for node in queue)
+            for _ in range(size):
+                node = queue.popleft()
+                if node.left is not None:
+                    queue.append(node.left)
+                if node.right is not None:
+                    queue.append(node.right)
+            depth += 1
+        return 0  # level deeper than the tree
+
+    def sum_at_height(self, height: int) -> int:
+        """If the question counts the root as height 1: level = height - 1."""
+        return self.sum_at_level(height - 1)
+
+    def level_sums(self) -> list[int]:
+        """Sum of every level, top to bottom, e.g. EXAMPLE -> [50, 100, 200]."""
+        sums: list[int] = []
+
+        def walk(node: Node | None, depth: int) -> None:
+            if node is None:
+                return
+            if depth == len(sums):
+                sums.append(0)  # first time we reach this depth
+            sums[depth] += node.value
+            walk(node.left, depth + 1)
+            walk(node.right, depth + 1)
+
+        walk(self.root, 0)
+        return sums
+
+    def count_at_level(self, level: int) -> int:
+        def walk(node: Node | None, depth: int) -> int:
+            if node is None:
+                return 0
+            if depth == level:
+                return 1
+            return walk(node.left, depth + 1) + walk(node.right, depth + 1)
+
+        return walk(self.root, 0)
+
+    def print_level(self, level: int) -> int:
+        """Print the values on a level and their sum; return the sum."""
+        values = self.nodes_at_level(level)
+        total = 0
+        for v in values:
+            total += v
+        print(f"level {level}: {values} sum = {total}")
+        return total
+
+    def max_level_sum(self) -> int:
+        """Level (root = 0) with the largest sum; first one wins ties."""
+        sums = self.level_sums()
+        if not sums:
+            raise ValueError("empty")
+        best = 0
+        for i in range(1, len(sums)):
+            if sums[i] > sums[best]:
+                best = i
+        return best
+
+    def sum_leaves(self) -> int:
+        def walk(node: Node | None) -> int:
+            if node is None:
+                return 0
+            if node.left is None and node.right is None:
+                return node.value
+            return walk(node.left) + walk(node.right)
+
+        return walk(self.root)
+
+    def leaf_count_bft(self) -> int:
+        """Leaf count without recursion (BFT, check children of each node)."""
+        if self.root is None:
+            return 0
+        count = 0
+        queue: deque[Node] = deque([self.root])
+        while queue:
+            node = queue.popleft()
+            if node.left is None and node.right is None:
+                count += 1
+            if node.left is not None:
+                queue.append(node.left)
+            if node.right is not None:
+                queue.append(node.right)
+        return count
+
+    @staticmethod
+    def max_leaves_for_height(h: int) -> int:
+        """Height in NODES (single node = 1): 2^(h-1). Empty tree (h=0): 0."""
+        return 0 if h <= 0 else 2 ** (h - 1)
+
+    @staticmethod
+    def max_nodes_at_level(level: int) -> int:
+        """Root = level 0: 2^level."""
+        return 2**level
+
+    @staticmethod
+    def max_nodes_for_height(h: int) -> int:
+        """Height in NODES: 2^h - 1."""
+        return 2**h - 1
+
+    @staticmethod
+    def max_leaves_for_nodes(n: int) -> int:
+        """Most leaves any binary tree with n nodes can have: ceil(n/2)."""
+        return (n + 1) // 2
+
     @staticmethod
     def from_preorder_inorder(pre: list[int], ino: list[int]) -> "BST":
         """Rebuild a tree: pre[0] is the root; split inorder around it."""
@@ -764,3 +918,26 @@ def test_variants() -> None:
     p.delete_predecessor(50)
     assert root_value(p) == 40 and p.is_bst() and p.inorder() == [20, 30, 40, 60, 70, 80]
     print("variants: min/max, iterative, kth, range, depth, succ/pred, lca, rebuild OK")
+
+
+def test_levels_and_leaves() -> None:
+    t = build(EXAMPLE)
+    assert [t.sum_at_level(i) for i in range(4)] == [50, 100, 200, 0]
+    assert [t.sum_at_level_bft(i) for i in range(4)] == [50, 100, 200, 0]
+    assert t.sum_at_height(3) == 200 and t.level_sums() == [50, 100, 200]
+    assert [t.count_at_level(i) for i in range(4)] == [1, 2, 4, 0]
+    assert t.print_level(2) == 200
+    assert t.max_level_sum() == 2 and t.sum_leaves() == 200
+    assert t.leaf_count_bft() == t.count_leaf_nodes() == 4
+    assert t.count_leaf_nodes() == BST.max_leaves_for_height(t.height())  # perfect tree
+    assert [BST.max_leaves_for_height(h) for h in range(5)] == [0, 1, 2, 4, 8]
+    assert [BST.max_nodes_for_height(h) for h in range(1, 5)] == [1, 3, 7, 15]
+    assert [BST.max_nodes_at_level(lv) for lv in range(4)] == [1, 2, 4, 8]
+    assert BST.max_leaves_for_nodes(7) == 4 and BST.max_leaves_for_nodes(6) == 3
+    skew = build([1, 2, 3, 4])
+    assert skew.level_sums() == [1, 2, 3, 4] and skew.count_leaf_nodes() == 1
+    odd = build([8, 4, 12, 2, 6, 10])
+    assert odd.level_sums() == [8, 16, 18] and odd.sum_at_level_bft(2) == 18
+    empty = BST()
+    assert empty.sum_at_level(0) == 0 and empty.level_sums() == [] and empty.leaf_count_bft() == 0
+    print("levels/leaves: level sums, BFT == DFS, height vs level, max-leaf formulas OK")

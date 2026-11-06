@@ -43,10 +43,34 @@ WORKSHEET ANSWERS TO REMEMBER
 - Test reversal by comparing node identities (nodes()), not just values.
 - Merge: ties take list1 (stable). When one list ends, copy the rest of the other.
 
+SORTED vs UNSORTED: SLL vs ARRAY (other student's quiz: "efficiency in sorted and
+unsorted SLL", "linear searching")
+  operation              unsorted SLL      sorted SLL              unsorted array  sorted array
+  search                 O(n) linear       O(n) linear (early      O(n)            O(log n) binary
+                                           exit once data > x)
+  insert                 O(1) at head      O(n) find spot,         O(1) append     O(n) shift
+                                           O(1) relink
+  delete by value        O(n) find,        O(n) find (early exit), O(n)            O(n) shift
+                         O(1) relink       O(1) relink
+  find min               O(n)              O(1) = head             O(n)            O(1) a[0]
+  find max               O(n)              O(n) walk to tail       O(n)            O(1) a[-1]
+                                           (O(1) with tail ref)
+  remove duplicates      O(n^2) (or set)   O(n) adjacent only      -               -
+  merge two lists        sort first        O(a+b)                  -               O(a+b)
+  KEY POINT: binary search does NOT help a linked list. No index access, so reaching
+  the middle costs O(n) every time: still O(n) overall (worse constants). Sorting a
+  SLL only buys early exit on a miss and O(1) min, at the cost of O(n) inserts.
+  Linear search cost: best 1 comparison (at head), worst n (last/absent),
+  average (n+1)/2 if present. Sorted early exit: an absent value stops at the first
+  bigger node, but the worst case is still O(n).
+
 QUIZ VARIANTS (all tested in test_variants): search "VARIANTS" below.
 insert_at_head, insert_sorted, insert_at, delete_at, delete_all,
 remove_duplicates_sorted, index_of, get, middle, has_cycle, max_value, sum_values,
-reverse_recursive, equals, copy, interleave.
+reverse_recursive, equals, copy, interleave,
+linear_search, linear_search_count, search_sorted, search_sorted_count,
+count_occurrences, all_positions, last_index_of, find_min_sorted, is_sorted,
+insert_unsorted, sum_at_positions.
 """
 
 # No imports: plain Python only (no libraries in the quiz).
@@ -387,6 +411,114 @@ class SinglyLinkedList:
         result.head = dummy.next
         return result
 
+    # ---------- Search / sorted-vs-unsorted variants (other student's quiz) ----------
+
+    def linear_search(self, target: int) -> int:
+        """Position (0-based) of the first match, else -1. O(n), O(1)."""
+        position = 0
+        current = self.head
+        while current is not None:
+            if current.data == target:
+                return position
+            current = current.next
+            position += 1
+        return -1
+
+    def linear_search_count(self, target: int) -> tuple[bool, int]:
+        """(found, comparisons made): shows best 1 / worst n."""
+        comparisons = 0
+        current = self.head
+        while current is not None:
+            comparisons += 1
+            if current.data == target:
+                return True, comparisons
+            current = current.next
+        return False, comparisons
+
+    def search_sorted(self, target: int) -> bool:
+        """Ascending list: stop early once data > target. Still O(n) worst."""
+        current = self.head
+        while current is not None and current.data <= target:
+            if current.data == target:
+                return True
+            current = current.next
+        return False
+
+    def search_sorted_count(self, target: int) -> tuple[bool, int]:
+        """search_sorted, also returning comparisons (to compare with unsorted)."""
+        comparisons = 0
+        current = self.head
+        while current is not None:
+            comparisons += 1
+            if current.data == target:
+                return True, comparisons
+            if current.data > target:
+                return False, comparisons  # early exit: everything after is bigger
+            current = current.next
+        return False, comparisons
+
+    def count_occurrences(self, target: int) -> int:
+        count = 0
+        current = self.head
+        while current is not None:
+            if current.data == target:
+                count += 1
+            current = current.next
+        return count
+
+    def all_positions(self, target: int) -> list[int]:
+        positions: list[int] = []
+        position = 0
+        current = self.head
+        while current is not None:
+            if current.data == target:
+                positions.append(position)
+            current = current.next
+            position += 1
+        return positions
+
+    def last_index_of(self, target: int) -> int:
+        """Must scan the whole list (can't walk backwards in a SLL)."""
+        last = -1
+        position = 0
+        current = self.head
+        while current is not None:
+            if current.data == target:
+                last = position
+            current = current.next
+            position += 1
+        return last
+
+    def find_min_sorted(self) -> int:
+        """Sorted ascending: min is the head, O(1)."""
+        if self.head is None:
+            raise ValueError("empty")
+        return self.head.data
+
+    def is_sorted(self) -> bool:
+        current = self.head
+        while current is not None and current.next is not None:
+            if current.data > current.next.data:
+                return False
+            current = current.next
+        return True
+
+    def insert_unsorted(self, data: int) -> None:
+        """Order doesn't matter, so insert at head: O(1) (vs insert_sorted O(n))."""
+        self.insert_at_head(data)
+
+    def sum_at_positions(self, start: int, end: int) -> int:
+        """Sum of values at positions start..end inclusive. O(n)."""
+        total = 0
+        position = 0
+        current = self.head
+        while current is not None and position <= end:
+            if position >= start:
+                total += current.data
+            current = current.next
+            position += 1
+        return total
+
     def interleave(self, other: SinglyLinkedList) -> SinglyLinkedList:
         """New list a1, b1, a2, b2, ... then whatever is left. O(a+b)."""
         result = SinglyLinkedList()
@@ -684,3 +816,22 @@ def test_variants() -> None:
     inter = SinglyLinkedList([1, 3, 5, 7]).interleave(SinglyLinkedList([2, 4]))
     assert list(inter) == [1, 2, 3, 4, 5, 7]
     print("PASS: variants")
+
+
+def test_search_variants() -> None:
+    unsorted = SinglyLinkedList([7, 3, 9, 3, 1])
+    assert unsorted.linear_search(9) == 2 and unsorted.linear_search(4) == -1
+    assert unsorted.linear_search_count(7) == (True, 1)  # best case: head
+    assert unsorted.linear_search_count(4) == (False, 5)  # worst case: absent, n
+    assert unsorted.count_occurrences(3) == 2 and unsorted.all_positions(3) == [1, 3]
+    assert unsorted.last_index_of(3) == 3 and not unsorted.is_sorted()
+    srt = SinglyLinkedList([1, 3, 5, 7, 9])
+    assert srt.is_sorted() and srt.search_sorted(7) and not srt.search_sorted(4)
+    assert srt.search_sorted_count(4) == (False, 3)  # stops at 5
+    assert SinglyLinkedList([9, 1, 7, 5, 3]).linear_search_count(4) == (False, 5)
+    assert srt.find_min_sorted() == 1 and srt.sum_at_positions(1, 3) == 15
+    srt.insert_unsorted(0)
+    assert list(srt) == [0, 1, 3, 5, 7, 9]
+    empty = SinglyLinkedList()
+    assert empty.linear_search(1) == -1 and empty.is_sorted() and not empty.search_sorted(1)
+    print("search: linear (best 1 / worst n), sorted early exit, counts, positions OK")

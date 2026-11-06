@@ -5,6 +5,7 @@ from linked_list import (
     test_merge_n,
     test_remove_nth_from_end,
     test_reverse,
+    test_search_variants,
     test_variants,
 )
 
@@ -18,6 +19,7 @@ def main() -> None:
         test_merge,
         test_merge_n,
         test_variants,
+        test_search_variants,
     ):
         print(f"\n== {test.__name__} ==")  # noqa: T201
         test()
